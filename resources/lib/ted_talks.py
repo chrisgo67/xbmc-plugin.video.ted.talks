@@ -4,9 +4,14 @@ import sys
 import time
 import urllib.parse
 
+# Kodi provides these modules at runtime; they are not available to the local interpreter.
+# noinspection PyUnresolvedReferences
 import xbmc
+# noinspection PyUnresolvedReferences
 import xbmcgui
+# noinspection PyUnresolvedReferences
 import xbmcplugin
+# noinspection PyUnresolvedReferences
 import xbmcvfs
 
 from . import menu_util

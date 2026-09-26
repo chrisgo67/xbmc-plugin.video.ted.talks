@@ -4,7 +4,7 @@ try:
 except ImportError:
     from xml.etree.ElementTree import fromstring
 import unittest
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from .rss_scraper import NewTalksRss
 

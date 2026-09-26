@@ -1,7 +1,7 @@
 import sys
 import unittest
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 sys.modules.setdefault('xbmc', MagicMock())  # talk_scraper logs via xbmc.
 

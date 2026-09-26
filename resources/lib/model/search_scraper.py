@@ -1,4 +1,6 @@
 import html
+# Provided by Kodi's script.module.html5lib dependency and requirements.txt.
+# noinspection PyUnresolvedReferences
 import html5lib
 import re
 import urllib.parse

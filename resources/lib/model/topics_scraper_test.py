@@ -1,7 +1,7 @@
 import timeit
 import unittest
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from .test_util import skip_ted_rate_limited, CachedHTMLProvider
 from .topics_scraper import Topics

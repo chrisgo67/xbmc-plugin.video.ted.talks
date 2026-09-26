@@ -23,8 +23,6 @@ class Search:
         then tuples of title, link, img for results on this page.
         '''
 
-        # TODO yield speakers, topics
-
         search_string = urllib.parse.quote_plus(search_string)
         search_url = __url_search__ % (search_string, page_index)
         search_content = self.get_HTML(search_url)

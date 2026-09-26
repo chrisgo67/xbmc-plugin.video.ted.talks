@@ -3,6 +3,8 @@ import json
 import requests
 import re
 import sys
+# Kodi provides this module at runtime; it is not available to the local interpreter.
+# noinspection PyUnresolvedReferences
 import xbmc
 
 # get() used in Kodi 18.x

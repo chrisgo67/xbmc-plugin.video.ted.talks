@@ -31,6 +31,8 @@ def __get_kodi_setting__(xbmc, setting_id):
         return ''
 
 def init():
+    # Kodi provides these modules at runtime; they are not available to the local interpreter.
+    # noinspection PyUnresolvedReferences
     import xbmc, xbmcvfs, xbmcaddon
     addon = xbmcaddon.Addon(id=__plugin_id__)
     global profile_path, enable_subtitles, subtitle_fallback_english, xbmc_language, xbmc_language_code, kodi_subtitle_language, subtitle_language
@@ -95,4 +97,3 @@ def get_current_search():
         return ''
     with open(current_search_file, 'r') as f:
         return f.read()
-

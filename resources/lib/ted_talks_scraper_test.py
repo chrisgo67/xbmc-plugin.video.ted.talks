@@ -1,7 +1,6 @@
 import unittest
-import urllib.request, urllib.error, urllib.parse
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from .model.test_util import CachedHTMLProvider
 from . import ted_talks_scraper

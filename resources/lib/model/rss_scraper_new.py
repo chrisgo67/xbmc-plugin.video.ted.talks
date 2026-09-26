@@ -148,7 +148,7 @@ class NewTalksRss(object):
                 for entry in entries:
                     talk = self._parse_atom_entry(entry)
                     if talk['title'] and talk['media']:
-                        talks_by_title[talk['title']] = talk
+                        talks_by_title[str(talk['title'])] = talk
 
             else: # Klassisches RSS-Format (z.B. Podcast-Feeds)
                 items = root.findall('.//item')
@@ -156,7 +156,7 @@ class NewTalksRss(object):
                 for item in items:
                     talk = self._parse_rss_item(item)
                     if talk['title'] and talk['media']:
-                        talks_by_title[talk['title']] = talk
+                        talks_by_title[str(talk['title'])] = talk
 
         except Exception as e:
             self.logger(f"[TED-Parser] Kritischer XML-Parser-Fehler: {e}")

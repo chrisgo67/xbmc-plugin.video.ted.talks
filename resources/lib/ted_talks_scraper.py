@@ -1,3 +1,5 @@
+# Provided by Kodi's script.module.m3u8 dependency and requirements.txt.
+# noinspection PyUnresolvedReferences
 import m3u8
 from urllib.parse import urlparse
 

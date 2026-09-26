@@ -1,0 +1,105 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: plugin.video.ted.talks\n"
+"Report-Msgid-Bugs-To: https://github.com/moreginger/xbmc-plugin.video.ted.talks\n"
+"POT-Creation-Date: 2017-01-13 21:33+000\n"
+"PO-Revision-Date: 2026-09-26 15:30+000\n"
+"Last-Translator: Kodi Translation Team\n"
+"Language-Team: German (Germany)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de_DE\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgctxt "#30000"
+msgid "TED Talks"
+msgstr "TED Talks"
+
+msgctxt "#30001"
+msgid "Newest Talks"
+msgstr "Neueste Talks"
+
+msgctxt "#30031"
+msgid "TED is a nonprofit devoted to Ideas Worth Spreading. On this feed, you'll find TEDTalks video to inspire, intrigue and stir the imagination from some of the world's leading thinkers and doers, speaking from the stage at TED conferences, TEDx events and partner events around the world. This podcast is also available in high-def video and audio-only formats."
+msgstr "TED ist eine gemeinnützige Organisation, die sich der Verbreitung wertvoller Ideen widmet. Hier findest du TED-Talks, die inspirieren, neugierig machen und die Vorstellungskraft anregen – von einigen der führenden Denker und Macher der Welt, gehalten auf TED-Konferenzen, TEDx-Events und Partnerveranstaltungen rund um den Globus."
+
+msgctxt "#30002"
+msgid "Speakers"
+msgstr "Sprecher"
+
+msgctxt "#30032"
+msgid "Thinkers. Doers. Idea-generators. These are the speakers who have delivered a talk featured on TED.com. Whether the talk was given at an official TED conference, at one of thousands of local, independently organized TEDx events, or on another stage altogether, these are the people who brought it to life."
+msgstr "Denker. Macher. Ideengeber. Das sind die Sprecher, deren Talks auf TED.com zu sehen sind – ob auf einer offiziellen TED-Konferenz, einem der tausenden lokalen, unabhängig organisierten TEDx-Events oder auf einer ganz anderen Bühne."
+
+msgctxt "#30004"
+msgid "Search"
+msgstr "Suche"
+
+msgctxt "#30034"
+msgid "Search for Talks on TED.com"
+msgstr "Talks auf TED.com suchen"
+
+msgctxt "#30007"
+msgid "Topics"
+msgstr "Themen"
+
+msgctxt "#30033"
+msgid "Browse TED Talks by topic, from activism to wildlife."
+msgstr "TED-Talks nach Themen durchsuchen, von Aktivismus bis Wildtiere."
+
+msgctxt "#30020"
+msgid "Next"
+msgstr "Weiter"
+
+msgctxt "#30021"
+msgid "Previous"
+msgstr "Zurück"
+
+msgctxt "#30022"
+msgid "More..."
+msgstr "Mehr..."
+
+msgctxt "#30097"
+msgid "Queue"
+msgstr "Zur Warteschlange hinzufügen"
+
+msgctxt "#30098"
+msgid "Toggle watched"
+msgstr "Gesehen umschalten"
+
+msgctxt "#30110"
+msgid "General"
+msgstr "Allgemein"
+
+msgctxt "#30111"
+msgid "Enable subtitles"
+msgstr "Untertitel aktivieren"
+
+msgctxt "#30112"
+msgid "Fall back to English subtitles"
+msgstr "Ersatzweise englische Untertitel verwenden"
+
+msgctxt "#30113"
+msgid "Custom language codes, e.g. de,en or pt-br (optional)"
+msgstr "Eigene Sprachcodes, z. B. de,en oder pt-br (optional)"
+
+msgctxt "#30120"
+msgid "No subtitles found"
+msgstr "Keine Untertitel gefunden"
+
+msgctxt "#30121"
+msgid "No subtitles in: %s"
+msgstr "Keine Untertitel in: %s"
+
+msgctxt "#30122"
+msgid "Error showing subtitles"
+msgstr "Fehler beim Anzeigen der Untertitel"
+
+msgctxt "#30123"
+msgid "Cannot find talks for topic '%s'."
+msgstr "Keine Talks zum Thema '%s' gefunden."
+
+msgctxt "#30124"
+msgid "Action '%s' failed. Try re-creating the item."
+msgstr "Aktion '%s' fehlgeschlagen. Bitte den Eintrag neu anlegen."

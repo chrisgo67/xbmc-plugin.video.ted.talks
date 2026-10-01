@@ -1,3 +1,30 @@
+## [5.1.7]
+### Changed
+- Added a playback service to enable TED subtitles when the add-on subtitle setting is enabled, regardless of Kodi's global subtitle default
+- Avoided attaching stale subtitles when none are available or subtitles are disabled
+- Build for Kodi 21.x (Omega); tested under LibreELEC 12.2.1
+- Playback uses m3u8, which respects the global bandwidth setting
+
+## [5.1.6]
+### Changed
+- Set subtitles on the video list item before playback starts
+- Build for Kodi 21.x (Omega); tested under LibreELEC 12.2.1
+- Playback uses m3u8, which respects the global bandwidth setting
+
+## [5.1.4]
+### Changed
+- Build for Kodi 21.x (Omega); tested under LibreELEC 12.2.1
+- Playback uses m3u8, which respects the global bandwidth setting
+
+## [5.1.3]
+### Changed
+- Build for Kodi 21.x (Omega); tested under LibreELEC 12.2.1
+- Playback uses m3u8, which respects the global bandwidth setting
+
+## [5.0.2] - [5.1.2]
+### Changed
+- Updated for TED's new site structure and RSS feed
+
 ## [5.0.1]
 ### Changed
 - Requireds Kodi 19.x (Matrix) or Kodi 20.x (Nexus)

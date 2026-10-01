@@ -44,7 +44,7 @@ Write-Host "Packing $addonId version $addonVersion..."
 
 # Files/folders to exclude from the packaged addon (dev, CI and test artifacts).
 $excludeNames = @(
-    '.git', '.gitignore', '.idea', '.pylintrc', '.pytest_cache', '.travis.yml',
+    '.git', '.gitignore', '.idea', '.venv', '.pylintrc', '.pytest_cache', '.travis.yml',
     'build.ps1', 'build.sh', 'run_tests.sh',
     'requirements.txt', 'README', 'README.md', 'README-developers.md', 'CHANGELOG.md',
     'LICENSE.txt'

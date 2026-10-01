@@ -65,7 +65,7 @@ class UI:
             li.addStreamInfo('video', {'duration' : video_info['duration']})
         if not isFolder:
             li.setProperty('IsPlayable', 'true')  # let xbmc know this can be played, unlike a folder.
-            context_menu = menu_util.create_context_menu(getLS=plugin.getLS)
+            context_menu = menu_util.create_context_menu(getLS=plugin.get_localized_string)
             li.addContextMenuItems(context_menu, replaceItems=False)
         else:
             li.addContextMenuItems([], replaceItems=False)
@@ -96,15 +96,15 @@ class UI:
 
     def navItems(self, navItems, mode):
         if navItems['next']:
-            self.addItem(plugin.getLS(30020), mode, navItems['next'])
+            self.addItem(plugin.get_localized_string(30020), mode, navItems['next'])
         if navItems['previous']:
-            self.addItem(plugin.getLS(30021), mode, navItems['previous'])
+            self.addItem(plugin.get_localized_string(30021), mode, navItems['previous'])
 
     def showCategories(self):
-        self.addItem(plugin.getLS(30001), 'newTalksRss', video_info={'Plot':plugin.getLS(30031)})
-        self.addItem(plugin.getLS(30002), 'speakers', video_info={'Plot':plugin.getLS(30032)})
-        self.addItem(plugin.getLS(30004) + "...", 'search', video_info={'Plot':plugin.getLS(30034)})
-        self.addItem(plugin.getLS(30007), 'topics', video_info={'Plot':plugin.getLS(30033)})
+        self.addItem(plugin.get_localized_string(30001), 'newTalksRss', video_info={'Plot':plugin.get_localized_string(30031)})
+        self.addItem(plugin.get_localized_string(30002), 'speakers', video_info={'Plot':plugin.get_localized_string(30032)})
+        self.addItem(plugin.get_localized_string(30004) + "...", 'search', video_info={'Plot':plugin.get_localized_string(30034)})
+        self.addItem(plugin.get_localized_string(30007), 'topics', video_info={'Plot':plugin.get_localized_string(30033)})
         self.endofdirectory()
 
     def newTalksRss(self):
@@ -262,7 +262,7 @@ class SearchActionBase(Action):
         for title, link, img in search_results:
             self.ui.addItem(title, 'playVideo', link, img, isFolder=False, video_info={ 'mediatype': "video" })
         if remaining_talks:
-            self.ui.addItem(plugin.getLS(30022), 'searchMore', args={'search_term': search_term, 'page': str(page + 1)})
+            self.ui.addItem(plugin.get_localized_string(30022), 'searchMore', args={'search_term': search_term, 'page': str(page + 1)})
         xbmcplugin.setContent(int(sys.argv[1]), 'videos')
         self.ui.endofdirectory(sortMethod='none', updateListing=update_listing)
 
@@ -276,7 +276,7 @@ class SearchAction(SearchActionBase):
         super(SearchAction, self).__init__(*(args + ('search', [])), **kwargs)
 
     def run_internal(self, args):
-        keyboard = xbmc.Keyboard(settings.get_current_search(), plugin.getLS(30004))
+        keyboard = xbmc.Keyboard(settings.get_current_search(), plugin.get_localized_string(30004))
         keyboard.doModal()
 
         if not keyboard.isConfirmed():

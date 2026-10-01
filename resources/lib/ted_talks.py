@@ -1,7 +1,6 @@
 import itertools
 import os
 import sys
-import time
 import urllib.parse
 
 # Kodi provides these modules at runtime; they are not available to the local interpreter.
@@ -82,31 +81,14 @@ class UI:
         li = xbmcgui.ListItem(title, path=playlist_file, offscreen=True)
         li.setArt({'icon': icon, 'thumb': icon})
         li.setInfo(type='Video', infoLabels=info_labels)
-        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 
         subs_file = os.path.join(xbmcvfs.translatePath("special://temp/"), 'ted_talks_subs.srt')
         with open(subs_file, 'w', encoding='utf-8') as fh:
-            if subs:
-                fh.write(subs)
-            else:
-                pass # Write empty file as subs will persist and appear for the next video.
-            
-        # Up to 30s to start
-        start_time = time.time()
-        player = xbmc.Player()
-        while not player.isPlaying() and time.time() - start_time < 10:
-            pass
+            fh.write(subs or '')
+        if subs:
+            li.setSubtitles([subs_file])
 
-        if not player.isPlaying():
-            # No user message: user was probably already notified of a problem with the stream.
-            plugin.report('Could not show subtitles: timed out waiting for player to start.')
-            return
-        else:
-            if subs:
-                player.setSubtitles(subs_file)
-                player.showSubtitles(True)
-            else:
-                player.showSubtitles(False)
+        xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
 
     def navItems(self, navItems, mode):
         if navItems['next']:

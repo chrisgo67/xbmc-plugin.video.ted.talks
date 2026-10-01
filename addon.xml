@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.ted.talks" name="TED Talks" version="5.1.4" provider-name="moreginger, rwparris2, kevwag, kodaksmith, cgh">
+<addon id="plugin.video.ted.talks" name="TED Talks" version="5.1.6" provider-name="moreginger, rwparris2, kevwag, kodaksmith, techie67">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -9,6 +9,7 @@
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>video</provides>
   </extension>
+  <extension point="xbmc.service" library="resources/lib/subtitle_service.py" start="login"/>
   <extension point="xbmc.addon.metadata">
     <!-- There are subtitles on TED in many languages,
     and this plugin is (partially) internationalized in several,
@@ -25,7 +26,7 @@
     <platform>all</platform>
     <license>GPL-2.0-or-later</license>
     <news>
-v5.1.4
+v5.1.6
 - Build for Kodi 21.x (Omega)
 - Tested under LibreELEC (official): 12.2.1
 - Playback uses m3u8, which respects the global bandwidth setting

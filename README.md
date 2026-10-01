@@ -26,6 +26,11 @@ Settings
 
 __Enable subtitles__: Check this option to show subtitles.
 By default the subtitles will be shown in the current XBMC language.
+When a matching subtitle is available, it is attached automatically as the talk starts;
+there is no need to select the SRT file in the player's subtitle menu.
+The add-on enables subtitles for that talk even when Kodi's default subtitle visibility
+is off; it does not change Kodi's global setting. Restart Kodi after installing the add-on
+to start the playback service.
 
 __Custom language code__: Set a custom language code (ISO639-1) if required.
 It is also possible to enter a comma separated list of language codes (e.g. _pt-br,pt,en_)

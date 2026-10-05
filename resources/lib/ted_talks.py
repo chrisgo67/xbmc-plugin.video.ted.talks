@@ -34,6 +34,7 @@ class UI:
         if sortMethod == 'title':
             sortMethod = xbmcplugin.SORT_METHOD_LABEL
         elif sortMethod == 'date':
+            # Kodi defaults date sorting to descending and preserves user view settings.
             sortMethod = xbmcplugin.SORT_METHOD_DATE
         elif sortMethod == 'none':
             sortMethod = xbmcplugin.SORT_METHOD_NONE

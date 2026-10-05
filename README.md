@@ -15,7 +15,11 @@ The currently supported browsing options are:
 * Speakers
 * Topics
 
-Playback uses an m3u8 playlist file. Kodi will automatically select the best
+Newest talks default to date sorting with the newest first. The order remains
+changeable in Kodi's standard side menu (right arrow). Kodi remembers a manually
+selected order; the add-on does not reset it when opening the list.
+
+Playback uses a m3u8 playlist file. Kodi will automatically select the best
 bitrate supported by the bandwidth settings of the installation.
 
 
@@ -25,7 +29,7 @@ Settings
 ![settings screen shot](README/settings.png)
 
 __Enable subtitles__: Check this option to show subtitles.
-By default the subtitles will be shown in the current XBMC language.
+By default, the subtitles will be shown in the current XBMC language.
 When a matching subtitle is available, it is attached automatically as the talk starts;
 there is no need to select the SRT file in the player's subtitle menu.
 The add-on enables subtitles for that talk even when Kodi's default subtitle visibility

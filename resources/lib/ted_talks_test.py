@@ -26,7 +26,8 @@ class TestPlayVideoSubtitles(unittest.TestCase):
     def play(self, subtitles, languages):
         self.ui.ted_talks.get_video_details.return_value = ('playlist', 'Talk', subtitles, {})
         with patch.object(ted_talks.settings, 'get_subtitle_languages', return_value=languages), \
-                patch.object(ted_talks.xbmcvfs, 'translatePath', return_value=self.temp_dir.name), \
+                patch.object(ted_talks, 'xbmcvfs',
+                             translatePath=MagicMock(return_value=self.temp_dir.name)), \
                 patch.object(ted_talks.plugin, 'report'), \
                 patch.object(ted_talks.sys, 'argv', ['plugin', '1']):
             self.ui.playVideo('https://www.ted.com/talks/example', None)

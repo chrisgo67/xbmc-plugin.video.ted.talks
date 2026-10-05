@@ -1,7 +1,11 @@
 import os
 
+# Kodi provides these modules at runtime; they are not available to the local interpreter.
+# noinspection PyUnresolvedReferences
 import xbmc
+# noinspection PyUnresolvedReferences
 import xbmcaddon
+# noinspection PyUnresolvedReferences
 import xbmcvfs
 
 

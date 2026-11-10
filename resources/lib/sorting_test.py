@@ -15,7 +15,8 @@ class TestSorting(unittest.TestCase):
 
     def test_directory_sort_methods(self):
         ui = ted_talks.UI(MagicMock(), MagicMock())
-        with patch.object(ted_talks, 'xbmcplugin') as kodi, \
+        kodi = MagicMock()
+        with patch.multiple(ted_talks, xbmcplugin=kodi), \
                 patch.object(ted_talks.sys, 'argv', ['plugin', '1']):
             for method, expected in [
                 ('title', kodi.SORT_METHOD_LABEL),
@@ -30,9 +31,10 @@ class TestSorting(unittest.TestCase):
 
     def test_newest_talks_use_kodi_date_sorting(self):
         ui = ted_talks.UI(MagicMock(), MagicMock())
-        with patch.object(ted_talks, 'NewTalksRss') as rss, \
-                patch.object(ted_talks, 'xbmcplugin') as kodi, \
-                patch.object(ted_talks, 'xbmc') as xbmc, \
+        rss = MagicMock()
+        kodi = MagicMock()
+        xbmc = MagicMock()
+        with patch.multiple(ted_talks, NewTalksRss=rss, xbmcplugin=kodi, xbmc=xbmc), \
                 patch.object(ted_talks.sys, 'argv', ['plugin', '1']):
             rss.return_value.get_new_talks.return_value = []
 

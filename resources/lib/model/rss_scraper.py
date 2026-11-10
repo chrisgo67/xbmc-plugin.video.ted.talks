@@ -57,6 +57,14 @@ def _parse_duration_seconds(duration):
     return timedelta(hours=hours, minutes=minutes, seconds=seconds).total_seconds()
 
 
+def _is_ted_video_link(link):
+    parsed = urllib.parse.urlparse(link)
+    host = (parsed.hostname or '').lower()
+    if host == 'go.ted.com':
+        return bool(parsed.path.strip('/'))
+    return host in ('ted.com', 'www.ted.com') and parsed.path.startswith('/talks/')
+
+
 class NewTalksRss(object):
     """
     Fetches new talks from RSS stream.
@@ -125,7 +133,7 @@ class NewTalksRss(object):
 
         for item in root.findall('channel/item'):
             talk = self.get_talk_details(item)
-            talks_by_title[talk['title']] = talk
+            if _is_ted_video_link(talk['link']):
+                talks_by_title[talk['title']] = talk
 
         return iter(talks_by_title.values())
-

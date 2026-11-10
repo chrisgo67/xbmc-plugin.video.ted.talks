@@ -4,7 +4,7 @@ try:
 except ImportError:
     from xml.etree.ElementTree import fromstring
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from .rss_scraper import NewTalksRss
 
@@ -49,6 +49,20 @@ class TestNewTalksRss(unittest.TestCase):
         date_now = datetime.strftime(datetime.now(), '%d.%m.%Y')
         self.assertEqual(date_now, details['date'])
         self.logger.assert_called_with("Could not parse date 'Sat, 04 02 2012 08:14:00': time data 'Sat, 04 02 2012 08:14:00' does not match format '%a, %d %b %Y %H:%M:%S'")
+
+    def test_get_new_talks_only_includes_ted_video_links(self):
+        feed = b"""<rss><channel>
+          <item><title>Sunday Pick: Audio episode</title><link>https://audiocollective.ted.com/</link><pubDate>Sat, 04 Feb 2012 08:14:00 +0000</pubDate></item>
+          <item><title>Sunday Pick: TED video</title><link>https://www.ted.com/talks/example_talk?rss</link><pubDate>Sat, 04 Feb 2012 08:14:00 +0000</pubDate></item>
+          <item><title>TED video alias</title><link>http://go.ted.com/example</link><pubDate>Sat, 04 Feb 2012 08:14:00 +0000</pubDate></item>
+        </channel></rss>"""
+        with patch('resources.lib.model.rss_scraper.get_document', return_value=feed):
+            talks = list(self.talks.get_new_talks())
+
+        self.assertEqual(
+            ['Sunday Pick: TED video', 'TED video alias'],
+            [talk['title'] for talk in talks]
+        )
 
     def test_smoke(self):
         talks = list(self.talks.get_new_talks())

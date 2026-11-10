@@ -28,14 +28,14 @@ class TestTedSubtitlePlayer(unittest.TestCase):
         self.subs_file = os.path.join(self.temp_dir.name, 'ted_talks_subs.srt')
         with open(self.subs_file, 'w', encoding='utf-8') as fh:
             fh.write('1\n00:00:00,000 --> 00:00:01,000\nHello\n')
-        subtitle_service.xbmcvfs.translatePath.return_value = self.temp_dir.name
-        subtitle_service.xbmcaddon.Addon.return_value.getSetting.return_value = 'true'
-        subtitle_service.xbmcaddon.Addon.reset_mock()
+        xbmcvfs.translatePath.return_value = self.temp_dir.name
+        xbmcaddon.Addon.return_value.getSetting.return_value = 'true'
+        xbmcaddon.Addon.reset_mock()
 
     def test_enables_subtitles_for_ted_even_when_kodi_default_is_off(self):
         self.player.onAVStarted()
 
-        subtitle_service.xbmcaddon.Addon.assert_called_once_with(id='plugin.video.ted.talks')
+        xbmcaddon.Addon.assert_called_once_with(id='plugin.video.ted.talks')
         self.player.setSubtitles.assert_called_once_with(self.subs_file)
         self.player.showSubtitles.assert_called_once_with(True)
 
@@ -44,12 +44,12 @@ class TestTedSubtitlePlayer(unittest.TestCase):
 
         self.player.onAVStarted()
 
-        subtitle_service.xbmcaddon.Addon.assert_not_called()
+        xbmcaddon.Addon.assert_not_called()
         self.player.setSubtitles.assert_not_called()
         self.player.showSubtitles.assert_not_called()
 
     def test_disabled_addon_setting_does_not_override_kodi(self):
-        subtitle_service.xbmcaddon.Addon.return_value.getSetting.return_value = 'false'
+        xbmcaddon.Addon.return_value.getSetting.return_value = 'false'
 
         self.player.onAVStarted()
 

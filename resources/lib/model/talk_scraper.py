@@ -1,17 +1,15 @@
 # 2022-03 Convert to use regular expressions
 import json
-import requests
 import re
-import sys
 # Kodi provides this module at runtime; it is not available to the local interpreter.
 # noinspection PyUnresolvedReferences
 import xbmc
 
 # get() used in Kodi 18.x
-def get(html, logger, video_quality='180kbps'):
-    '''Extract talk details from talk html
+def get(html):
+    """Extract talk details from talk html
        @param video_quality string in form '\\d+kbps' that should match one of the provided TED bitrates.
-    '''
+    """
 
     match = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', re.DOTALL).search(html)
     if not match:
@@ -58,6 +56,6 @@ def get(html, logger, video_quality='180kbps'):
     return url, title, speaker, plot, talk_json, player_json
 
 # get_talk() used in Kodi 19+
-def get_talk(html, logger):
-    url, title, speaker, plot, talk_json, player_json = get(html, logger)
+def get_talk(html):
+    url, title, speaker, plot, talk_json, player_json = get(html)
     return url, title, speaker, plot, talk_json, player_json

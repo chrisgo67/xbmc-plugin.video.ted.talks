@@ -7,7 +7,9 @@ so keep it for now.
 import re
 from datetime import timedelta
 import time
+from typing import TypedDict
 import urllib.request, urllib.error, urllib.parse
+from urllib.parse import ParseResult
 
 
 try:
@@ -27,6 +29,17 @@ FEED_URL = 'https://feeds.acast.com/public/shows/67587e77c705e441797aff96'
 # Acast items append an HTML "Hosted on Acast..." disclaimer after an <hr>.
 _ACAST_BOILERPLATE_RE = re.compile(r'<hr>.*', re.DOTALL)
 _TAG_RE = re.compile(r'<[^>]+>')
+
+
+class TalkDetails(TypedDict):
+    title: str
+    author: str
+    thumb: str
+    plot: str
+    duration: float
+    date: str
+    link: str
+    mediatype: str
 
 
 def get_document(url):
@@ -57,8 +70,8 @@ def _parse_duration_seconds(duration):
     return timedelta(hours=hours, minutes=minutes, seconds=seconds).total_seconds()
 
 
-def _is_ted_video_link(link):
-    parsed = urllib.parse.urlparse(link)
+def _is_ted_video_link(link: str) -> bool:
+    parsed: ParseResult = urllib.parse.urlparse(link, scheme='')
     host = (parsed.hostname or '').lower()
     if host == 'go.ted.com':
         return bool(parsed.path.strip('/'))
@@ -74,7 +87,7 @@ class NewTalksRss(object):
         self.logger = logger
         self.default_thumb = ''  # populated per-feed from the channel's cover image
 
-    def get_talk_details(self, item):
+    def get_talk_details(self, item) -> TalkDetails:
         """
         Return the details from an RSS <item> tag soup.
         """
@@ -116,7 +129,8 @@ class NewTalksRss(object):
 
         return {'title':title, 'author':author, 'thumb':pic, 'plot':plot, 'duration':duration_seconds, 'date':date, 'link':link, 'mediatype': "video"}
 
-    def __total_seconds__(self, delta):
+    @staticmethod
+    def __total_seconds__(delta):
         return delta.total_seconds()
 
     def get_new_talks(self):

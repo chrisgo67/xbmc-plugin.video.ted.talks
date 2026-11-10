@@ -1,7 +1,7 @@
 # Provided by Kodi's script.module.m3u8 dependency and requirements.txt.
-# noinspection PyUnresolvedReferences
 import m3u8
-from urllib.parse import urlparse
+from typing import Optional
+from urllib.parse import ParseResult, urlparse
 
 from .model.subtitles_scraper import Subtitles
 from .model import talk_scraper
@@ -15,7 +15,7 @@ class TedTalks:
     def get_video_details(self, url, subs_language=None):
         talk_html = self.fetcher.get_HTML(url)
         try:
-            m3u8_url, title, speaker, plot, talk_json, player_json = talk_scraper.get_talk(talk_html, self.logger)
+            m3u8_url, title, speaker, plot, talk_json, player_json = talk_scraper.get_talk(talk_html)
         except Exception as e:
             raise Exception("%s\nfor url '%s'" % (e, url)) from e
 
@@ -30,7 +30,7 @@ class TedTalks:
     def __process_m3u8__(self, m3u8_url):
         r = self.fetcher.get(m3u8_url)
         playlist = m3u8.loads(r.text)
-        parsed_url = urlparse(r.url)
+        parsed_url: ParseResult = urlparse(r.url, scheme='')
         root_url = parsed_url.scheme + '://' + parsed_url.netloc       
         path = parsed_url.path.rsplit('/', 1)[0] + '/'
 
@@ -49,8 +49,11 @@ class TedTalks:
         
         return playlist.dumps()
 
-    def __resolve__(self, root_url, path, url):
-        parsed_url = urlparse(url)
+    @staticmethod
+    def __resolve__(root_url: str, path: str, url: Optional[str]) -> Optional[str]:
+        if url is None:
+            return None
+        parsed_url: ParseResult = urlparse(url, scheme='')
         if parsed_url.scheme:
             return url
         if not url.startswith('/'):

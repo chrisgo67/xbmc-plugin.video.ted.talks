@@ -12,10 +12,40 @@ class TestTedTalks(unittest.TestCase):
         self.logger = MagicMock()
         self.sut = ted_talks_scraper.TedTalks(CachedHTMLProvider(), self.logger)
 
+    def test_resolve_playlist_urls(self):
+        root = 'https://hls.ted.com'
+        path = '/project_masters/1580/'
+        for uri, expected in (
+            (None, None),
+            ('audio.m3u8', root + path + 'audio.m3u8'),
+            ('/videos/audio.m3u8', root + '/videos/audio.m3u8'),
+            ('https://example.com/audio.m3u8', 'https://example.com/audio.m3u8'),
+        ):
+            with self.subTest(uri=uri):
+                self.assertEqual(expected, self.sut.__resolve__(root, path, uri))
+
+    def test_process_playlist_with_in_band_audio(self):
+        fetcher = MagicMock()
+        fetcher.get.return_value.url = 'https://hls.ted.com/project_masters/1580/manifest.m3u8'
+        fetcher.get.return_value.text = (
+            '#EXTM3U\n'
+            '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",DEFAULT=YES\n'
+            '#EXT-X-STREAM-INF:BANDWIDTH=100000,AUDIO="audio"\n'
+            'video.m3u8\n'
+        )
+        sut = ted_talks_scraper.TedTalks(fetcher, self.logger)
+        playlist = ted_talks_scraper.m3u8.loads(sut.__process_m3u8__('https://example.com/master.m3u8'))
+
+        self.assertIsNone(playlist.media[0].uri)
+        self.assertEqual(
+            'https://hls.ted.com/project_masters/1580/video.m3u8',
+            playlist.playlists[0].uri
+        )
+
     def test_smoke_relative_path(self):
-        '''
+        """
         m3u8 stream urls do not start with '/'. Should be resolved vs the m3u8 playlist URL.
-        '''
+        """
         playlist, title, subs, info = self.sut.get_video_details('https://www.ted.com/talks/ariel_garten_know_thyself_with_a_brain_scanner.html')
 
         self.assertEqual('{}\n'.format('''
@@ -55,9 +85,9 @@ https://hls.ted.com/project_masters/1580/index-f11-v1.m3u8?intro_master_id=2346
 '''.strip()), playlist)
 
     def test_smoke_full_path(self):
-        '''
+        """
         m3u8 stream urls do not start with '/'. Should be resolved vs the domain of the m3u8 playlist URL.
-        '''
+        """
         playlist, title, subs, info = self.sut.get_video_details('https://www.ted.com/talks/michael_levin_the_electrical_blueprints_that_orchestrate_life')
 
         self.assertEqual('{}\n'.format('''

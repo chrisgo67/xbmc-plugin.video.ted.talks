@@ -78,4 +78,4 @@ Zweite Zeile
 
     def __get_player_json__(self, url):
         html = self.fetcher.get_HTML(url)
-        return talk_scraper.get_talk(html, self.logger)[5]
+        return talk_scraper.get_talk(html)[5]

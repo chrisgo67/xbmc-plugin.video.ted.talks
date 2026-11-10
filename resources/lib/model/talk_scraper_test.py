@@ -3,7 +3,7 @@ import unittest
 from unittest import mock
 
 from . import talk_scraper
-from .test_util import skip_ted_rate_limited, CachedHTMLProvider, EXCLUDE_RATE_LIMITED
+from .test_util import CachedHTMLProvider
 
 
 class TestTalkScraper(unittest.TestCase):
@@ -42,7 +42,7 @@ class TestTalkScraper(unittest.TestCase):
 
     def assert_talk_details(self, talk_url, expected_video_url, expected_title, expected_speaker, expect_plot, expect_json):
         logger = mock.MagicMock()
-        url, title, speaker, plot, talk_json = talk_scraper.get_talk(CachedHTMLProvider().get_HTML(talk_url), logger)
+        url, title, speaker, plot, talk_json = talk_scraper.get_talk(CachedHTMLProvider().get_HTML(talk_url))
         self.assertEqual(expected_video_url, url)
         self.assertEqual(expected_title, title)
         self.assertEqual(expected_speaker, speaker)
@@ -62,7 +62,7 @@ class TestTalkScraper(unittest.TestCase):
         logger = mock.MagicMock()
 
         def test():
-            talk_scraper.get_talk(html, logger)
+            talk_scraper.get_talk(html)
 
         t = timeit.Timer(test)
         repeats = 10

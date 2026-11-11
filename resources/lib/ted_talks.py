@@ -2,6 +2,7 @@ import itertools
 import os
 import sys
 import urllib.parse
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
 import requests
 
@@ -50,7 +51,11 @@ class UI:
         # let xbmc know the script is done adding items to the list.
         xbmcplugin.endOfDirectory(handle=int(sys.argv[1]), updateListing=updateListing)
 
-    def addItem(self, title, mode, url=None, img='', args=None, video_info=None, isFolder=True, total_items=0):
+    def addItem(
+            self, title, mode: str, url: Optional[str] = None, img: Optional[str] = '',
+            args: Optional[Dict[str, str]] = None,
+            video_info: Optional[Mapping[str, object]] = None,
+            isFolder: bool = True, total_items: int = 0):
         # Create action url
         if video_info is None:
             video_info = {}
@@ -60,8 +65,8 @@ class UI:
         if url:
             args['url'] = url
 
-        args = [k + '=' + urllib.parse.quote_plus(v) for k, v in args.items()]
-        action_url = sys.argv[0] + '?' + "&".join(args)
+        encoded_args = [k + '=' + urllib.parse.quote_plus(v) for k, v in args.items()]
+        action_url = sys.argv[0] + '?' + "&".join(encoded_args)
 
         li = xbmcgui.ListItem(label=title, offscreen=True)
         li.setArt({'icon': img, 'thumb': img})
@@ -148,6 +153,9 @@ class Action(object):
         else:
             self.report_problem(args)
 
+    def run_internal(self, args):
+        raise NotImplementedError('Actions must implement run_internal.')
+
     def report_problem(self, args):
         # The theory is that this might happen for a favorite from another version;
         # though we can't be sure about the cause hence vagueness in friendly message.
@@ -188,14 +196,14 @@ class SpeakerDirectoryAction(Action):
                 30133, 'Could not update speakers. The previous index is kept when available.'),
         )
 
-    def _load_directory(self, force=False):
+    def _load_directory(self, force: bool = False) -> Optional[List[Dict[str, str]]]:
         directory = SpeakerDirectory(self.post_JSON, settings.profile_path)
         try:
             cache = directory.read_cache()
         except (OSError, ValueError) as error:
             self._report_directory_error(error)
             cache = None
-        if not force and directory.is_fresh(cache):
+        if not force and cache is not None and directory.is_fresh(cache):
             return cache['speakers']
 
         progress = xbmcgui.DialogProgress()
@@ -329,7 +337,9 @@ class SearchActionBase(Action):
         super(SearchActionBase, self).__init__(*args, **kwargs)
         self.ui = ui
 
-    def __add_items__(self, search_term, page, current_items, update_listing):
+    def __add_items__(
+            self, search_term: str, page: int,
+            current_items: Iterable[Tuple[str, str, str]], update_listing: bool):
         talks_generator = Search(self.post_JSON).get_talks_for_search(search_term, page)
         remaining_talks = next(itertools.islice(talks_generator, 1))
         search_results = list(itertools.chain(current_items, talks_generator))

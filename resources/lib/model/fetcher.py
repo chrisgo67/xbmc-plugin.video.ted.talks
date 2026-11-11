@@ -53,4 +53,5 @@ class Fetcher:
             return r.json()
         else:
             self.logger('%s\n%s\n%s' % (r.status_code, r.headers, r.text))
-            raise Exception('Failed to POST {}: {}'.format(url, r.status_code))
+            raise requests.HTTPError(
+                'Failed to POST {}: {}'.format(url, r.status_code), response=r)

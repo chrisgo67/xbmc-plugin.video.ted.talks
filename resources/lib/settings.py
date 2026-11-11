@@ -88,12 +88,12 @@ def __get_profile_path__(*segments):
     return os.path.join(profile_path, *segments)
 
 def set_current_search(value):
-    with open(__get_profile_path__('current_search'), 'w') as f:
+    with open(__get_profile_path__('current_search'), 'w', encoding='utf-8') as f:
         f.write(value)
 
 def get_current_search():
     current_search_file = __get_profile_path__('current_search')
     if not os.path.exists(current_search_file):
         return ''
-    with open(current_search_file, 'r') as f:
+    with open(current_search_file, 'r', encoding='utf-8') as f:
         return f.read()

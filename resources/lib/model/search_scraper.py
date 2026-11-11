@@ -1,21 +1,17 @@
-import html
-# Provided by Kodi's script.module.html5lib dependency and requirements.txt.
-# noinspection PyUnresolvedReferences
-import html5lib
-import re
 import urllib.parse
 
 from .url_constants import URLTED
 
 
-__url_search__ = URLTED + '/search?cat=videos&q=%s&page=%s'
-__results_count_re__ = re.compile(r'\d+ - (\d+) of (\d+) results') # "331 - 360 of 333 results"
-__result_count_re__ = re.compile(r'\d+ +results?') # Two spaces at the moment i.e. "1  result"
+__url_search__ = URLTED + '/api/search'
+__search_index__ = 'coyote_models_acme_videos_alias_38ce41d1f97ca56a38068f613af166da'
+__results_per_page__ = 24
+
 
 class Search:
 
-    def __init__(self, get_HTML):
-        self.get_HTML = get_HTML
+    def __init__(self, post_JSON):
+        self.post_JSON = post_JSON
 
     def get_talks_for_search(self, search_string, page_index):
         '''
@@ -23,29 +19,44 @@ class Search:
         then tuples of title, link, img for results on this page.
         '''
 
-        search_string = urllib.parse.quote_plus(search_string)
-        search_url = __url_search__ % (search_string, page_index)
-        search_content = self.get_HTML(search_url)
+        params = urllib.parse.urlencode({
+            'query': search_string,
+            'hitsPerPage': __results_per_page__,
+            'page': page_index - 1,
+        })
+        response = self.post_JSON(__url_search__, [{
+            'indexName': __search_index__,
+            'params': params,
+        }])
+        if response.get('error'):
+            raise ValueError('TED search failed: %s' % response['error'])
+        results = response.get('results')
+        if not results:
+            raise ValueError('TED search response did not contain results.')
 
-        results = html5lib.parse(search_content, namespaceHTMLElements=False).findall(".//article[@class='m1 search__result']")
-        yield self._results_remaining(search_content, len(results)) 
+        search_results = results[0]
+        hits = search_results.get('hits')
+        if hits is None:
+            raise ValueError('TED search response did not contain hits.')
 
-        import xml.etree.ElementTree as ElementTree
-        for result in results:
-            url = result.find('.//a[@href]').attrib['href']
-            if not url.startswith('/talks/'):
+        remaining = max(
+            0,
+            search_results['nbHits'] -
+            (search_results['page'] + 1) * search_results['hitsPerPage'],
+        )
+        yield remaining
+
+        for result in hits:
+            slug = result.get('slug')
+            title = result.get('title')
+            if not slug or not title:
                 continue
-            url = URLTED + url
-            title = html.unescape(result.find('.//h3/a').text.strip())
-            img = result.find('.//img[@src]').attrib['src']
-            yield title, url, img
+            yield title.strip(), URLTED + '/talks/' + slug, self._get_image(result)
 
-    def _results_remaining(self, html, results):
-        results_count_match = __results_count_re__.search(html)
-        if results_count_match:
-            last_on_page = int(results_count_match.group(1))
-            total_results = int(results_count_match.group(2))
-            return max(0, total_results - last_on_page)
-        if __result_count_re__.search(html):
-            return 0  # All results on this page
-        return 1 # We don't know so just make sure that it is positive so that we keep paging.
+    @staticmethod
+    def _get_image(result):
+        for photo in result.get('photos') or []:
+            for photo_size in photo.get('photo_sizes') or []:
+                if photo_size.get('url'):
+                    return photo_size['url']
+        return ''

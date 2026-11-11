@@ -1,8 +1,7 @@
+import json
 import unittest
-
 from unittest.mock import MagicMock
 
-from .model.test_util import CachedHTMLProvider
 from . import ted_talks_scraper
 
 
@@ -10,7 +9,8 @@ class TestTedTalks(unittest.TestCase):
 
     def setUp(self):
         self.logger = MagicMock()
-        self.sut = ted_talks_scraper.TedTalks(CachedHTMLProvider(), self.logger)
+        self.fetcher = MagicMock()
+        self.sut = ted_talks_scraper.TedTalks(self.fetcher, self.logger)
 
     def test_resolve_playlist_urls(self):
         root = 'https://hls.ted.com'
@@ -25,96 +25,103 @@ class TestTedTalks(unittest.TestCase):
                 self.assertEqual(expected, self.sut.__resolve__(root, path, uri))
 
     def test_process_playlist_with_in_band_audio(self):
-        fetcher = MagicMock()
-        fetcher.get.return_value.url = 'https://hls.ted.com/project_masters/1580/manifest.m3u8'
-        fetcher.get.return_value.text = (
+        self.fetcher.get.return_value.url = 'https://hls.ted.com/project_masters/1580/manifest.m3u8'
+        self.fetcher.get.return_value.text = (
             '#EXTM3U\n'
             '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",DEFAULT=YES\n'
             '#EXT-X-STREAM-INF:BANDWIDTH=100000,AUDIO="audio"\n'
             'video.m3u8\n'
         )
-        sut = ted_talks_scraper.TedTalks(fetcher, self.logger)
-        playlist = ted_talks_scraper.m3u8.loads(sut.__process_m3u8__('https://example.com/master.m3u8'))
+        playlist = ted_talks_scraper.m3u8.loads(
+            self.sut.__process_m3u8__('https://example.com/master.m3u8'))
 
         self.assertIsNone(playlist.media[0].uri)
         self.assertEqual(
             'https://hls.ted.com/project_masters/1580/video.m3u8',
-            playlist.playlists[0].uri
+            playlist.playlists[0].uri,
         )
 
-    def test_smoke_relative_path(self):
-        """
-        m3u8 stream urls do not start with '/'. Should be resolved vs the m3u8 playlist URL.
-        """
-        playlist, title, subs, info = self.sut.get_video_details('https://www.ted.com/talks/ariel_garten_know_thyself_with_a_brain_scanner.html')
+    def assert_video_details(self, uri_prefix, expected_base):
+        talk_url = 'https://www.ted.com/talks/example_talk'
+        manifest_url = 'https://example.com/manifest.m3u8'
+        video_data = {
+            'title': 'Example talk',
+            'description': 'Example description',
+            'videoPlayerData': {
+                'speaker': 'Example speaker',
+                'resources': {'hls': {'stream': manifest_url + '?intro_master_id=2346'}},
+            },
+        }
+        self.fetcher.get_HTML.return_value = (
+            '<script id="__NEXT_DATA__" type="application/json">%s</script>' %
+            json.dumps({'props': {'pageProps': {'videoData': video_data}}})
+        )
+        self.fetcher.get.return_value.url = (
+            'https://hls.ted.com/project_masters/1580/manifest.m3u8'
+        )
+        self.fetcher.get.return_value.text = (
+            '#EXTM3U\n'
+            '#EXT-X-VERSION:4\n'
+            '#EXT-X-INDEPENDENT-SEGMENTS\n'
+            '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",'
+            'DEFAULT=YES,AUTOSELECT=YES,URI="{prefix}audio.m3u8?track=en"\n'
+            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",'
+            'LANGUAGE="en",URI="{prefix}subtitles.m3u8"\n'
+            '#EXT-X-STREAM-INF:BANDWIDTH=100000,RESOLUTION=640x360,'
+            'CODECS="avc1.42c01e,mp4a.40.2",AUDIO="audio",SUBTITLES="subs"\n'
+            '{prefix}video.m3u8?quality=low\n'
+            '#EXT-X-STREAM-INF:BANDWIDTH=200000,RESOLUTION=1280x720,'
+            'CODECS="avc1.640028,mp4a.40.2",AUDIO="audio",SUBTITLES="subs"\n'
+            '{prefix}video.m3u8?quality=high\n'
+            '#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=5000,RESOLUTION=640x360,'
+            'CODECS="avc1.42c01e",URI="{prefix}iframe.m3u8?quality=low"\n'
+        ).format(prefix=uri_prefix)
 
-        self.assertEqual('{}\n'.format('''
-#EXTM3U
-#EXT-X-INDEPENDENT-SEGMENTS
-#EXT-X-VERSION:4
-#EXT-X-MEDIA:URI="https://hls.ted.com/project_masters/1580/index-f5-a1.m3u8?intro_master_id=2346",TYPE=AUDIO,GROUP-ID="audio0",LANGUAGE="en",NAME="low",DEFAULT=NO,AUTOSELECT=NO,CHANNELS="1"
-#EXT-X-MEDIA:URI="https://hls.ted.com/project_masters/1580/index-f8-a1.m3u8?intro_master_id=2346",TYPE=AUDIO,GROUP-ID="audio0",LANGUAGE="en",NAME="medium",DEFAULT=YES,AUTOSELECT=YES,CHANNELS="2"
-#EXT-X-MEDIA:URI="https://hls.ted.com/project_masters/1580/index-f12-a1.m3u8?intro_master_id=2346",TYPE=AUDIO,GROUP-ID="audio0",LANGUAGE="en",NAME="high",DEFAULT=NO,AUTOSELECT=NO,CHANNELS="2"
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1231593,AVERAGE-BANDWIDTH=1094793,RESOLUTION=854x480,FRAME-RATE=59.92,CODECS="avc1.64001f,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f9-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=163328,AVERAGE-BANDWIDTH=148605,RESOLUTION=320x180,FRAME-RATE=59.92,CODECS="avc1.42c00d,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f1-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=241739,AVERAGE-BANDWIDTH=216837,RESOLUTION=320x180,FRAME-RATE=59.92,CODECS="avc1.42c01e,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f2-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=371097,AVERAGE-BANDWIDTH=331981,RESOLUTION=416x234,FRAME-RATE=59.92,CODECS="avc1.42c01e,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f3-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=511004,AVERAGE-BANDWIDTH=460493,RESOLUTION=416x234,FRAME-RATE=59.92,CODECS="avc1.64001e,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f4-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=683948,AVERAGE-BANDWIDTH=598503,RESOLUTION=480x270,FRAME-RATE=59.92,CODECS="avc1.64001f,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f6-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1019879,AVERAGE-BANDWIDTH=906897,RESOLUTION=640x360,FRAME-RATE=59.92,CODECS="avc1.64001f,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f7-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1796457,AVERAGE-BANDWIDTH=1499914,RESOLUTION=1280x720,FRAME-RATE=59.92,CODECS="avc1.64001f,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f10-v1.m3u8?intro_master_id=2346
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=2825086,AVERAGE-BANDWIDTH=2537141,RESOLUTION=1280x720,FRAME-RATE=59.92,CODECS="avc1.64001f,mp4a.40.2",AUDIO="audio0"
-https://hls.ted.com/project_masters/1580/index-f11-v1.m3u8?intro_master_id=2346
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=5227,RESOLUTION=320x180,CODECS="avc1.42c00d",URI="https://hls.ted.com/project_masters/1580/iframes-f1-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=12390,RESOLUTION=320x180,CODECS="avc1.42c01e",URI="https://hls.ted.com/project_masters/1580/iframes-f2-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=12396,RESOLUTION=416x234,CODECS="avc1.42c01e",URI="https://hls.ted.com/project_masters/1580/iframes-f3-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=30011,RESOLUTION=416x234,CODECS="avc1.64001e",URI="https://hls.ted.com/project_masters/1580/iframes-f4-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=25516,RESOLUTION=480x270,CODECS="avc1.64001f",URI="https://hls.ted.com/project_masters/1580/iframes-f6-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=51839,RESOLUTION=640x360,CODECS="avc1.64001f",URI="https://hls.ted.com/project_masters/1580/iframes-f7-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=55803,RESOLUTION=854x480,CODECS="avc1.64001f",URI="https://hls.ted.com/project_masters/1580/iframes-f9-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=75088,RESOLUTION=1280x720,CODECS="avc1.64001f",URI="https://hls.ted.com/project_masters/1580/iframes-f10-v1.m3u8?intro_master_id=2346"
-#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=131800,RESOLUTION=1280x720,CODECS="avc1.64001f",URI="https://hls.ted.com/project_masters/1580/iframes-f11-v1.m3u8?intro_master_id=2346"
-'''.strip()), playlist)
+        playlist_text, title, subs, info = self.sut.get_video_details(talk_url)
+        playlist = ted_talks_scraper.m3u8.loads(playlist_text)
+
+        self.fetcher.get_HTML.assert_called_once_with(talk_url)
+        self.fetcher.get.assert_called_once_with(manifest_url)
+        self.assertEqual('Example talk', title)
+        self.assertIsNone(subs)
+        self.assertEqual({
+            'Director': 'Example speaker', 'Genre': 'TED',
+            'Plot': 'Example description', 'PlotOutline': 'Example description',
+        }, info)
+        self.assertEqual(4, playlist.version)
+        self.assertTrue(playlist.is_independent_segments)
+        self.assertEqual(1, len(playlist.media))
+        audio = playlist.media[0]
+        self.assertEqual('AUDIO', audio.type)
+        self.assertEqual(expected_base + 'audio.m3u8?track=en', audio.uri)
+        self.assertEqual('audio', audio.group_id)
+        self.assertEqual('YES', audio.default)
+        self.assertEqual('YES', audio.autoselect)
+        self.assertEqual([
+            expected_base + 'video.m3u8?quality=low',
+            expected_base + 'video.m3u8?quality=high',
+        ], [variant.uri for variant in playlist.playlists])
+        self.assertEqual([100000, 200000], [
+            variant.stream_info.bandwidth for variant in playlist.playlists])
+        self.assertEqual([(640, 360), (1280, 720)], [
+            variant.stream_info.resolution for variant in playlist.playlists])
+        self.assertEqual(['avc1.42c01e,mp4a.40.2', 'avc1.640028,mp4a.40.2'], [
+            variant.stream_info.codecs for variant in playlist.playlists])
+        for variant in playlist.playlists:
+            self.assertEqual('audio', variant.stream_info.audio)
+            self.assertEqual(['AUDIO'], [media.type for media in variant.media])
+            self.assertEqual(audio.uri, variant.media[0].uri)
+        self.assertEqual(1, len(playlist.iframe_playlists))
+        iframe = playlist.iframe_playlists[0]
+        self.assertEqual(expected_base + 'iframe.m3u8?quality=low', iframe.uri)
+        self.assertEqual(5000, iframe.iframe_stream_info.bandwidth)
+        self.assertEqual((640, 360), iframe.iframe_stream_info.resolution)
+        self.assertEqual('avc1.42c01e', iframe.iframe_stream_info.codecs)
+
+    def test_smoke_relative_path(self):
+        """Resolve relative URLs against the redirected manifest's directory."""
+        self.assert_video_details('', 'https://hls.ted.com/project_masters/1580/')
 
     def test_smoke_full_path(self):
-        """
-        m3u8 stream urls do not start with '/'. Should be resolved vs the domain of the m3u8 playlist URL.
-        """
-        playlist, title, subs, info = self.sut.get_video_details('https://www.ted.com/talks/michael_levin_the_electrical_blueprints_that_orchestrate_life')
-
-        self.assertEqual('{}\n'.format('''
-#EXTM3U
-#EXT-X-VERSION:4
-#EXT-X-MEDIA:URI="https://hls.ted.com/videos/MichaelLevin_2020/audio/600k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a",TYPE=AUDIO,GROUP-ID="600k",LANGUAGE="en",NAME="Audio",DEFAULT=YES,AUTOSELECT=YES
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1919626,RESOLUTION=640x360,CODECS="avc1.42c01e,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/600k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=165255,RESOLUTION=320x180,CODECS="avc1.42c00c,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/64k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=461789,RESOLUTION=512x288,CODECS="avc1.42c015,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/180k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1054935,RESOLUTION=512x288,CODECS="avc1.42c015,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/320k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1474025,RESOLUTION=512x288,CODECS="avc1.42c015,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/450k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=2866251,RESOLUTION=853x480,CODECS="avc1.4d401f,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/950k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3927925,RESOLUTION=1280x720,CODECS="avc1.640028,mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/video/1500k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=68059,CODECS="mp4a.40.2",AUDIO="600k"
-https://hls.ted.com/videos/MichaelLevin_2020/audio/600k.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=49101,RESOLUTION=320x180,CODECS="avc1.42c00c",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/64k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=115454,RESOLUTION=512x288,CODECS="avc1.42c015",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/180k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=149958,RESOLUTION=512x288,CODECS="avc1.42c015",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/320k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=172518,RESOLUTION=512x288,CODECS="avc1.42c015",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/450k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=230908,RESOLUTION=640x360,CODECS="avc1.42c01e",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/600k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=370249,RESOLUTION=853x480,CODECS="avc1.4d401f",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/950k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=557365,RESOLUTION=1280x720,CODECS="avc1.640028",URI="https://hls.ted.com/videos/MichaelLevin_2020/video/1500k_iframe.m3u8?preroll=newshortintro_053119&uniqueId=b58e8c1a"
-'''.strip()), playlist)
+        """Resolve root-relative URLs against the redirected manifest's host."""
+        self.assert_video_details('/videos/example/', 'https://hls.ted.com/videos/example/')

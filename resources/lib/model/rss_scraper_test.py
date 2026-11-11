@@ -6,6 +6,7 @@ except ImportError:
 import unittest
 from unittest.mock import MagicMock, patch
 
+from . import rss_scraper
 from .rss_scraper import NewTalksRss
 
 minimal_item = """
@@ -56,9 +57,10 @@ class TestNewTalksRss(unittest.TestCase):
           <item><title>Sunday Pick: TED video</title><link>https://www.ted.com/talks/example_talk?rss</link><pubDate>Sat, 04 Feb 2012 08:14:00 +0000</pubDate></item>
           <item><title>TED video alias</title><link>http://go.ted.com/example</link><pubDate>Sat, 04 Feb 2012 08:14:00 +0000</pubDate></item>
         </channel></rss>"""
-        with patch('resources.lib.model.rss_scraper.get_document', return_value=feed):
+        with patch.object(rss_scraper, 'get_document', return_value=feed) as get_document:
             talks = list(self.talks.get_new_talks())
 
+        get_document.assert_called_once_with(rss_scraper.FEED_URL)
         self.assertEqual(
             ['Sunday Pick: TED video', 'TED video alias'],
             [talk['title'] for talk in talks]

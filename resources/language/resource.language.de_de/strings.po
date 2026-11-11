@@ -103,3 +103,19 @@ msgstr "Keine Talks zum Thema '%s' gefunden."
 msgctxt "#30124"
 msgid "Action '%s' failed. Try re-creating the item."
 msgstr "Aktion '%s' fehlgeschlagen. Bitte den Eintrag neu anlegen."
+
+msgctxt "#30130"
+msgid "Other"
+msgstr "Weitere"
+
+msgctxt "#30131"
+msgid "Refresh speaker index"
+msgstr "Sprecherindex aktualisieren"
+
+msgctxt "#30132"
+msgid "Updating speaker index"
+msgstr "Sprecherindex wird aktualisiert"
+
+msgctxt "#30133"
+msgid "Could not update speakers. The previous index is kept when available."
+msgstr "Sprecher konnten nicht aktualisiert werden. Ein vorhandener Index bleibt erhalten."

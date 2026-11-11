@@ -103,3 +103,19 @@ msgstr ""
 msgctxt "#30124"
 msgid "Action '%s' failed. Try re-creating the item."
 msgstr ""
+
+msgctxt "#30130"
+msgid "Other"
+msgstr ""
+
+msgctxt "#30131"
+msgid "Refresh speaker index"
+msgstr ""
+
+msgctxt "#30132"
+msgid "Updating speaker index"
+msgstr ""
+
+msgctxt "#30133"
+msgid "Could not update speakers. The previous index is kept when available."
+msgstr ""

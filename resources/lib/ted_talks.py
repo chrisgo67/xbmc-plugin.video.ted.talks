@@ -3,6 +3,8 @@ import os
 import sys
 import urllib.parse
 
+import requests
+
 # Kodi provides these modules at runtime; they are not available to the local interpreter.
 # noinspection PyUnresolvedReferences
 import xbmc
@@ -21,7 +23,11 @@ from .model.fetcher import Fetcher
 from .model.rss_scraper import NewTalksRss
 from .model.search_scraper import Search
 from .model.speakers_scraper import Speakers
+from .model.speaker_directory import (
+    DirectoryCancelled, GROUPS, SpeakerDirectory, display_name, group_key, sort_key,
+)
 from .model.topics_scraper import Topics
+from .model.url_constants import URLTED
 
 class UI:
 
@@ -169,23 +175,90 @@ class NewTalksAction(Action):
         self.ui.newTalksRss()
 
 
-class SpeakersAction(Action):
+class SpeakerDirectoryAction(Action):
 
-    def __init__(self, ui, get_HTML, *args, **kwargs):
-        super(SpeakersAction, self).__init__('speakers', [], *args, **kwargs)
+    def __init__(self, ui, *args, **kwargs):
+        super(SpeakerDirectoryAction, self).__init__(*args, **kwargs)
         self.ui = ui
-        self.get_HTML = get_HTML
+
+    def _report_directory_error(self, error):
+        self.logger(
+            'Speaker directory: %s' % error,
+            friendly_message=plugin.localize(
+                30133, 'Could not update speakers. The previous index is kept when available.'),
+        )
+
+    def _load_directory(self, force=False):
+        directory = SpeakerDirectory(self.post_JSON, settings.profile_path)
+        try:
+            cache = directory.read_cache()
+        except (OSError, ValueError) as error:
+            self._report_directory_error(error)
+            cache = None
+        if not force and directory.is_fresh(cache):
+            return cache['speakers']
+
+        progress = xbmcgui.DialogProgress()
+        progress.create(plugin.localize(30132, 'Updating speaker index'))
+        try:
+            def update(completed, total):
+                progress.update(int(100 * completed / total), '%s / %s' % (completed, total))
+                return not progress.iscanceled()
+
+            return directory.refresh(update)
+        except DirectoryCancelled:
+            return cache['speakers'] if cache else None
+        except (requests.RequestException, OSError, ValueError) as error:
+            self._report_directory_error(error)
+            return cache['speakers'] if cache else None
+        finally:
+            progress.close()
+
+
+class SpeakersAction(SpeakerDirectoryAction):
+
+    def __init__(self, ui, *args, **kwargs):
+        super(SpeakersAction, self).__init__(ui, 'speakers', [], *args, **kwargs)
 
     def run_internal(self, args):
-        page_count = Speakers(self.get_HTML).get_speaker_page_count()
-        pages_per_group = 4
-        for i in range(1, page_count // pages_per_group + 1):
-            label = '%s-%s' % ((i - 1) * pages_per_group + 1, i * pages_per_group)
-            self.ui.addItem(label, 'speakerGroup', label, isFolder=True)
-        remainder = page_count % pages_per_group
-        if remainder != 0:
-            label = '%s-%s' % (page_count - remainder, page_count)
-            self.ui.addItem(label, 'speakerGroup', label, isFolder=True)
+        speakers = self._load_directory(force=self.mode == 'speakerRefresh')
+        if speakers is not None:
+            available = {group_key(speaker) for speaker in speakers}
+            for letter in GROUPS:
+                if letter in available:
+                    label = plugin.localize(30130, 'Other') if letter == '#' else letter
+                    self.ui.addItem(label, 'speakerLetter', args={'letter': letter})
+        self.ui.addItem(plugin.localize(30131, 'Refresh speaker index'), 'speakerRefresh')
+        self.ui.endofdirectory(sortMethod='none', updateListing=self.mode == 'speakerRefresh')
+
+
+class SpeakerRefreshAction(SpeakersAction):
+
+    def __init__(self, *args, **kwargs):
+        super(SpeakerRefreshAction, self).__init__(*args, **kwargs)
+        self.mode = 'speakerRefresh'
+
+
+class SpeakerLetterAction(SpeakerDirectoryAction):
+
+    def __init__(self, ui, *args, **kwargs):
+        super(SpeakerLetterAction, self).__init__(ui, 'speakerLetter', ['letter'], *args, **kwargs)
+
+    def run_internal(self, args):
+        letter = args['letter']
+        if letter not in GROUPS:
+            self.report_problem(args)
+            return
+        speakers = self._load_directory()
+        if speakers is not None:
+            for speaker in sorted(speakers, key=sort_key):
+                if group_key(speaker) == letter:
+                    self.ui.addItem(
+                        display_name(speaker), 'speakerVids',
+                        URLTED + '/speakers/' + speaker['slug'],
+                        img=speaker['avatar'], isFolder=True,
+                    )
+        xbmcplugin.setContent(int(sys.argv[1]), 'artists')
         self.ui.endofdirectory(sortMethod='none')
 
 
@@ -257,7 +330,7 @@ class SearchActionBase(Action):
         self.ui = ui
 
     def __add_items__(self, search_term, page, current_items, update_listing):
-        talks_generator = Search(self.get_HTML).get_talks_for_search(search_term, page)
+        talks_generator = Search(self.post_JSON).get_talks_for_search(search_term, page)
         remaining_talks = next(itertools.islice(talks_generator, 1))
         search_results = list(itertools.chain(current_items, talks_generator))
         for title, link, img in search_results:
@@ -315,9 +388,11 @@ class Main:
             modes = [
                 PlayVideoAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
                 NewTalksAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
-                SearchAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
-                SearchMoreAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
-                SpeakersAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
+                SearchAction(ui, logger=plugin.report, post_JSON=self.fetcher.post_JSON),
+                SearchMoreAction(ui, logger=plugin.report, post_JSON=self.fetcher.post_JSON),
+                SpeakersAction(ui, logger=plugin.report, post_JSON=self.fetcher.post_JSON),
+                SpeakerLetterAction(ui, logger=plugin.report, post_JSON=self.fetcher.post_JSON),
+                SpeakerRefreshAction(ui, logger=plugin.report, post_JSON=self.fetcher.post_JSON),
                 SpeakerGroupAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
                 SpeakerVideosAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),
                 TopicsAction(ui, logger=plugin.report, get_HTML=self.fetcher.get_HTML),

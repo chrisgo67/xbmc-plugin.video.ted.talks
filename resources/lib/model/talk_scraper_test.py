@@ -1,71 +1,63 @@
+import json
 import timeit
 import unittest
-from unittest import mock
 
 from . import talk_scraper
-from .test_util import CachedHTMLProvider
 
 
 class TestTalkScraper(unittest.TestCase):
 
+    def setUp(self):
+        self.video_url = 'https://hls.ted.com/project_masters/1580/manifest.m3u8'
+        self.player_json = {
+            'title': 'Player title',
+            'speaker': 'Ariel Garten',
+            'resources': {
+                'hls': {'stream': self.video_url + '?intro_master_id=2346'},
+            },
+        }
+        self.talk_json = {
+            'title': 'Know thyself, with a brain scanner',
+            'presenterDisplayName': 'Presenter fallback',
+            'description': 'A talk about the brain.',
+        }
+
+    def make_html(self, player_field, player_data):
+        video_data = dict(self.talk_json, **{player_field: player_data})
+        return '<script id="__NEXT_DATA__" type="application/json">%s</script>' % json.dumps({
+            'props': {'pageProps': {'videoData': video_data}},
+        })
+
     def test_get_ted_video(self):
-        # pre-2017 talk had different page format at some point. Unsure if that still holds?
-        self.assert_talk_details(
-            "https://www.ted.com/talks/ariel_garten_know_thyself_with_a_brain_scanner.html",
-            "https://hls.ted.com/project_masters/1580/manifest.m3u8?intro_master_id=2346",
-            "Know thyself, with a brain scanner",
-            "Ariel Garten",
-            True,
-            True
-        )
+        for field, player_data in (
+            ('videoPlayerData', self.player_json),
+            ('playerData', json.dumps(self.player_json)),
+            ('playerData', self.player_json),
+        ):
+            with self.subTest(player_field=field, encoded=isinstance(player_data, str)):
+                html = self.make_html(field, player_data)
+                url, title, speaker, plot, talk_json, player_json = talk_scraper.get_talk(html)
 
-        # post-2017 talk
-        self.assert_talk_details(
-            "https://www.ted.com/talks/dan_bricklin_meet_the_inventor_of_the_electronic_spreadsheet",
-            "https://hls.ted.com/project_masters/2740/manifest.m3u8?intro_master_id=2346",
-            "Meet the inventor of the electronic spreadsheet",
-            "Dan Bricklin",
-            True,
-            True
-        )
+                self.assertEqual(self.video_url, url)
+                self.assertEqual(self.talk_json['title'], title)
+                self.assertEqual(self.player_json['speaker'], speaker)
+                self.assertEqual(self.talk_json['description'], plot)
+                self.assertEqual(dict(self.talk_json, **{field: player_data}), talk_json)
+                self.assertEqual(self.player_json, player_json)
 
-        # Example of a YouTube link. Not currently working.
-        # Correct URL might be something like: plugin://plugin.video.youtube/?action=play_video&videoid=aNDiHSHYI_c
-        self.assert_talk_details(
-            "https://www.ted.com/talks/seth_godin_this_is_broken_1.html",
-            None,
-            "This is broken",
-            "Seth Godin",
-            True,
-            True
-        )
+    def test_get_ted_video_uses_title_and_speaker_fallbacks(self):
+        self.talk_json.pop('title')
+        self.player_json.pop('speaker')
+        html = self.make_html('videoPlayerData', self.player_json)
 
-    def assert_talk_details(self, talk_url, expected_video_url, expected_title, expected_speaker, expect_plot, expect_json):
-        logger = mock.MagicMock()
-        url, title, speaker, plot, talk_json = talk_scraper.get_talk(CachedHTMLProvider().get_HTML(talk_url))
-        self.assertEqual(expected_video_url, url)
-        self.assertEqual(expected_title, title)
-        self.assertEqual(expected_speaker, speaker)
+        _, title, speaker, _, _, _ = talk_scraper.get_talk(html)
 
-        if expect_plot:
-            self.assertTrue(plot)  # Not None or empty
-        else:
-            self.assertIsNone(plot)
-
-        if expect_json:
-            self.assertTrue(talk_json)  # Not None or empty
-        else:
-            self.assertIsNone(talk_json)
+        self.assertEqual(self.player_json['title'], title)
+        self.assertEqual(self.talk_json['presenterDisplayName'], speaker)
 
     def test_performance(self):
-        html = CachedHTMLProvider().get_HTML("https://www.ted.com/talks/ariel_garten_know_thyself_with_a_brain_scanner.html")
-        logger = mock.MagicMock()
-
-        def test():
-            talk_scraper.get_talk(html)
-
-        t = timeit.Timer(test)
+        html = self.make_html('videoPlayerData', self.player_json)
+        timer = timeit.Timer(lambda: talk_scraper.get_talk(html))
         repeats = 10
-        time = t.timeit(repeats)
-        print(("Extracting talk details took %s seconds per run" % (time / repeats)))
-        self.assertGreater(4, time)
+        elapsed = timer.timeit(repeats)
+        self.assertLess(elapsed, 4)

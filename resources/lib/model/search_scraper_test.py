@@ -1,44 +1,70 @@
-import math
-import timeit
 import unittest
 
-from .search_scraper import Search
-from .test_util import skip_ted_rate_limited, CachedHTMLProvider
+from .search_scraper import Search, __search_index__, __url_search__
+from .url_constants import URLTED
 
 
 class TestSearchScraper(unittest.TestCase):
 
     def setUp(self):
-        self.sut = Search(CachedHTMLProvider().get_HTML)
+        self.payloads = []
+        self.response = {
+            'results': [{
+                'nbHits': 50,
+                'page': 0,
+                'hitsPerPage': 24,
+                'hits': [
+                    {
+                        'title': 'Grüße aus München',
+                        'slug': 'gruesse_aus_muenchen',
+                        'photos': [{
+                            'photo_sizes': [{'url': 'https://example.com/talk.jpg'}],
+                        }],
+                    },
+                    {
+                        'title': 'Ein weiterer Talk',
+                        'slug': 'ein_weiterer_talk',
+                        'photos': [],
+                    },
+                ],
+            }],
+        }
 
-    def test_get_talks_for_search_smoke(self):
-        talks_generator = self.sut.get_talks_for_search('nuclear', 1)
-        remaining_talks = next(timeit.itertools.islice(talks_generator, 1))
+        def post_json(url, payload):
+            self.payloads.append((url, payload))
+            return self.response
 
-        self.assertLess(100, remaining_talks)  # 131 remaining at last check, just make sure we have a decent number remaining.
+        self.sut = Search(post_json)
 
-        talks = list(talks_generator)
-        talks_per_page = 30
-        self.assertEqual(talks_per_page, len(talks))
-        # Actually no guarantee this talk is in top results. It is today.
-        sample_talk = [s for s in talks if s[0] == 'Taylor Wilson: Yup, I built a nuclear fusion reactor'][0]
-        self.assertEqual('https://www.ted.com/talks/taylor_wilson_yup_i_built_a_nuclear_fusion_reactor', sample_talk[1])
-        self.assertEqual('https://pi.tedcdn.com/r/pe.tedcdn.com/images/ted/fa41dca52e81265b6e20f7ad9647711c1a58efb7_1600x1200.jpg?h=200', sample_talk[2])
+    def test_search_encodes_unicode_and_extracts_talks(self):
+        talks = self.sut.get_talks_for_search('Müller & Grüße', 1)
 
-        last_page = 1 + int(math.ceil(remaining_talks / talks_per_page))
-        talks_generator = self.sut.get_talks_for_search('nuclear', last_page)
-        remaining_talks = next(timeit.itertools.islice(talks_generator, 1))
-        self.assertLess(0, len(talks)) # At least one talk.
-        self.assertEqual(0, remaining_talks) # No talks remaining.
+        self.assertEqual(26, next(talks))
+        self.assertEqual([
+            ('Grüße aus München', URLTED + '/talks/gruesse_aus_muenchen',
+             'https://example.com/talk.jpg'),
+            ('Ein weiterer Talk', URLTED + '/talks/ein_weiterer_talk', ''),
+        ], list(talks))
 
-    @skip_ted_rate_limited
-    def test_get_talks_for_search_decodes_entities(self):
-        talks_generator = self.sut.get_talks_for_search('Onora', 1)
-        next(timeit.itertools.islice(talks_generator, 1))
-        self.assertTrue("Onora O'Neill: What we don't understand about trust" in [t[0] for t in list(talks_generator)])  # "'" is encoded so we need to decode it
+        url, payload = self.payloads[0]
+        self.assertEqual(__url_search__, url)
+        self.assertEqual(__search_index__, payload[0]['indexName'])
+        self.assertEqual(
+            'query=M%C3%BCller+%26+Gr%C3%BC%C3%9Fe&hitsPerPage=24&page=0',
+            payload[0]['params'],
+        )
 
-    @skip_ted_rate_limited
-    def test_search_for_speaker_name(self):
-        talks_generator = self.sut.get_talks_for_search('Christopher Soghoian', 1)  # Random name I haven't heard of
-        self.assertEqual(0, next(timeit.itertools.islice(talks_generator, 1)))  # Should be uncommon enough to have all results
-        list(talks_generator)  # We can generate a talk from each result - no contaminating "profile" results or similar
+    def test_search_requests_next_zero_based_api_page(self):
+        self.response['results'][0]['page'] = 1
+        self.response['results'][0]['nbHits'] = 50
+
+        talks = self.sut.get_talks_for_search('nuclear', 2)
+
+        self.assertEqual(2, next(talks))
+        self.assertIn('page=1', self.payloads[0][1][0]['params'])
+
+    def test_search_reports_api_errors(self):
+        self.response = {'error': 'Search service unavailable', 'results': []}
+
+        with self.assertRaisesRegex(ValueError, 'Search service unavailable'):
+            next(self.sut.get_talks_for_search('nuclear', 1))

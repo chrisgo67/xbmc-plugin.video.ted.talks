@@ -15,6 +15,19 @@ The currently supported browsing options are:
 * Speakers
 * Topics
 
+Speakers are grouped by surname initial (A-Z), with names displayed as
+"Surname, Given names". Only populated letter groups are shown. The index uses
+TED's separate name fields, preserving compound surnames and single names
+without guessing. Accents are ignored for
+sorting and grouping (for example, Muller with an umlaut is filed under M);
+names without an A-Z initial appear under "Other".
+
+The first visit downloads the speaker directory with a cancellable progress
+dialog. A local UTF-8 index is reused for seven days; select "Refresh speaker
+index" to update it manually. Cancelled or failed updates do not overwrite a
+previous index; failures display a notification. Old speaker-page favourites
+remain supported.
+
 Newest talks default to date sorting with the newest first. The order remains
 changeable in Kodi's standard side menu (right arrow). Kodi remembers a manually
 selected order; the add-on does not reset it when opening the list.

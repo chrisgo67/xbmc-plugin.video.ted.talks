@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+import requests
+
 with patch.dict(sys.modules, {
     'xbmc': MagicMock(),
     'xbmcgui': MagicMock(),
@@ -72,3 +74,138 @@ class TestPlayVideoSubtitles(unittest.TestCase):
         self.play(None, ['de'])
 
         self.xbmcgui.ListItem.return_value.setSubtitles.assert_not_called()
+
+
+class TestSpeakerNavigation(unittest.TestCase):
+
+    def setUp(self):
+        self.ui = MagicMock()
+        self.logger = MagicMock()
+        self.directory = MagicMock()
+        self.entries = [
+            self.speaker('zoe', 'M\u00fcller', 'Zoe'),
+            self.speaker('anna', 'Muller', 'Anna'),
+            self.speaker('aaker', 'Aaker', 'Jennifer'),
+            self.speaker('other', '\u674e', '\u660e'),
+        ]
+        self.directory.read_cache.return_value = {'speakers': self.entries}
+        self.directory.is_fresh.return_value = True
+        self.gui = MagicMock()
+        self.gui.DialogProgress.return_value.iscanceled.return_value = False
+        patches = [
+            patch.object(ted_talks, 'SpeakerDirectory', return_value=self.directory),
+            patch.object(ted_talks, 'xbmcgui', self.gui),
+            patch.object(ted_talks, 'xbmcplugin', MagicMock()),
+            patch.object(ted_talks.sys, 'argv', ['plugin', '1']),
+        ]
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+
+    @staticmethod
+    def speaker(slug, surname, first):
+        return {
+            'slug': slug, 'lastName': surname, 'firstName': first, 'middleName': '',
+            'fullName': first + ' ' + surname, 'avatar': 'https://example.com/avatar.jpg',
+        }
+
+    def action(self, action_type):
+        return action_type(self.ui, logger=self.logger, post_JSON=MagicMock())
+
+    def test_speakers_show_letter_groups_without_fetching_fresh_index(self):
+        self.action(ted_talks.SpeakersAction).run({})
+
+        calls = self.ui.addItem.call_args_list
+        self.assertEqual(['A', 'M', 'Other'], [call.args[0] for call in calls[:-1]])
+        self.assertEqual(['A', 'M', '#'], [call.kwargs['args']['letter'] for call in calls[:-1]])
+        self.assertEqual('speakerRefresh', calls[-1].args[1])
+        self.directory.refresh.assert_not_called()
+        self.gui.DialogProgress.assert_not_called()
+        self.ui.endofdirectory.assert_called_once_with(sortMethod='none', updateListing=False)
+
+    def test_main_registers_new_speaker_routes(self):
+        self.directory.refresh.return_value = self.entries
+        with patch.object(ted_talks, 'UI', return_value=self.ui), \
+                patch.object(ted_talks, 'Fetcher') as fetcher:
+            for arguments in (
+                    {'mode': 'speakers'},
+                    {'mode': 'speakerLetter', 'letter': 'A'},
+                    {'mode': 'speakerRefresh'}):
+                with self.subTest(arguments=arguments):
+                    self.ui.reset_mock()
+                    ted_talks.Main(arguments).run()
+                    self.ui.addItem.assert_called()
+                    self.ui.endofdirectory.assert_called_once()
+            self.directory.refresh.assert_called_once()
+            self.assertIs(fetcher.return_value.post_JSON,
+                          ted_talks.SpeakerDirectory.call_args.args[0])
+
+    def test_letter_preserves_surname_order_and_links(self):
+        self.action(ted_talks.SpeakerLetterAction).run({'letter': 'M'})
+
+        calls = self.ui.addItem.call_args_list
+        self.assertEqual(['Muller, Anna', 'M\u00fcller, Zoe'], [call.args[0] for call in calls])
+        self.assertEqual([
+            'https://www.ted.com/speakers/anna', 'https://www.ted.com/speakers/zoe',
+        ], [call.args[2] for call in calls])
+        self.assertTrue(all(call.kwargs['img'] for call in calls))
+        self.ui.endofdirectory.assert_called_once_with(sortMethod='none')
+
+    def test_manual_refresh_forces_update_and_replaces_listing(self):
+        self.directory.refresh.return_value = [self.entries[2]]
+        self.action(ted_talks.SpeakerRefreshAction).run({})
+
+        self.directory.refresh.assert_called_once()
+        self.gui.DialogProgress.return_value.close.assert_called_once()
+        self.ui.endofdirectory.assert_called_once_with(sortMethod='none', updateListing=True)
+
+    def test_expired_index_refreshes_and_progress_can_be_cancelled(self):
+        self.directory.is_fresh.return_value = False
+        self.directory.refresh.side_effect = ted_talks.DirectoryCancelled()
+        self.action(ted_talks.SpeakersAction).run({})
+
+        update = self.directory.refresh.call_args.args[0]
+        self.assertTrue(update(1, 2))
+        self.gui.DialogProgress.return_value.update.assert_called_with(50, '1 / 2')
+        self.gui.DialogProgress.return_value.iscanceled.return_value = True
+        self.assertFalse(update(1, 2))
+        self.assertEqual('A', self.ui.addItem.call_args_list[0].args[0])
+        self.logger.assert_not_called()
+
+    def test_failed_refresh_notifies_and_preserves_old_entries(self):
+        self.directory.refresh.side_effect = requests.HTTPError('Service unavailable')
+        self.action(ted_talks.SpeakerRefreshAction).run({})
+
+        self.logger.assert_called_once()
+        self.assertIn('Service unavailable', self.logger.call_args.args[0])
+        self.assertTrue(self.logger.call_args.kwargs['friendly_message'])
+        self.assertEqual(4, self.ui.addItem.call_count)
+        self.gui.DialogProgress.return_value.close.assert_called_once()
+
+    def test_first_build_cancellation_leaves_retry_available(self):
+        self.directory.read_cache.return_value = None
+        self.directory.is_fresh.return_value = False
+        self.directory.refresh.side_effect = ted_talks.DirectoryCancelled()
+        self.action(ted_talks.SpeakersAction).run({})
+
+        self.ui.addItem.assert_called_once_with('Refresh speaker index', 'speakerRefresh')
+        self.logger.assert_not_called()
+        self.gui.DialogProgress.return_value.close.assert_called_once()
+
+    def test_invalid_letter_is_reported_without_loading_index(self):
+        self.action(ted_talks.SpeakerLetterAction).run({'letter': 'invalid'})
+
+        self.logger.assert_called_once()
+        self.directory.read_cache.assert_not_called()
+
+    def test_legacy_page_group_still_opens(self):
+        with patch.object(ted_talks, 'Speakers') as speakers:
+            speakers.return_value.get_speakers_for_pages.return_value = iter([
+                4, ('Jennifer Aaker', 'https://www.ted.com/speakers/jennifer_aaker', 'avatar'),
+            ])
+            action = ted_talks.SpeakerGroupAction(
+                self.ui, get_HTML=MagicMock(), logger=self.logger)
+            action.run({'url': '1-4'})
+
+        speakers.return_value.get_speakers_for_pages.assert_called_once_with([1, 2, 3, 4])
+        self.assertEqual('speakerVids', self.ui.addItem.call_args.args[1])

@@ -92,10 +92,11 @@ class TestSpeakerNavigation(unittest.TestCase):
         self.directory.is_fresh.return_value = True
         self.gui = MagicMock()
         self.gui.DialogProgress.return_value.iscanceled.return_value = False
+        self.directory_factory = MagicMock(return_value=self.directory)
         patches = [
-            patch.object(ted_talks, 'SpeakerDirectory', return_value=self.directory),
-            patch.object(ted_talks, 'xbmcgui', self.gui),
-            patch.object(ted_talks, 'xbmcplugin', MagicMock()),
+            patch.multiple(
+                ted_talks, SpeakerDirectory=self.directory_factory,
+                xbmcgui=self.gui, xbmcplugin=MagicMock()),
             patch.object(ted_talks.sys, 'argv', ['plugin', '1']),
         ]
         for item in patches:
@@ -125,8 +126,8 @@ class TestSpeakerNavigation(unittest.TestCase):
 
     def test_main_registers_new_speaker_routes(self):
         self.directory.refresh.return_value = self.entries
-        with patch.object(ted_talks, 'UI', return_value=self.ui), \
-                patch.object(ted_talks, 'Fetcher') as fetcher:
+        fetcher = MagicMock()
+        with patch.multiple(ted_talks, UI=MagicMock(return_value=self.ui), Fetcher=fetcher):
             for arguments in (
                     {'mode': 'speakers'},
                     {'mode': 'speakerLetter', 'letter': 'A'},
@@ -138,7 +139,7 @@ class TestSpeakerNavigation(unittest.TestCase):
                     self.ui.endofdirectory.assert_called_once()
             self.directory.refresh.assert_called_once()
             self.assertIs(fetcher.return_value.post_JSON,
-                          ted_talks.SpeakerDirectory.call_args.args[0])
+                          self.directory_factory.call_args.args[0])
 
     def test_letter_preserves_surname_order_and_links(self):
         self.action(ted_talks.SpeakerLetterAction).run({'letter': 'M'})
@@ -199,7 +200,8 @@ class TestSpeakerNavigation(unittest.TestCase):
         self.directory.read_cache.assert_not_called()
 
     def test_legacy_page_group_still_opens(self):
-        with patch.object(ted_talks, 'Speakers') as speakers:
+        speakers = MagicMock()
+        with patch.multiple(ted_talks, Speakers=speakers):
             speakers.return_value.get_speakers_for_pages.return_value = iter([
                 4, ('Jennifer Aaker', 'https://www.ted.com/speakers/jennifer_aaker', 'avatar'),
             ])

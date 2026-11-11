@@ -15,7 +15,7 @@ __current_search_results__ = 'current_search_results'
 __kodi_subtitle_special_values__ = ['', 'original', 'default', 'none', 'forced_only']
 
 profile_path = '~/.kodi/userdata/addon_data/plugin.video.ted.talks'
-enable_subtitles = True
+enable_subtitles: str = 'true'
 subtitle_fallback_english = 'false'
 xbmc_language = 'English'
 xbmc_language_code = ''
@@ -50,13 +50,13 @@ def init():
     subtitle_language = addon.getSetting('subtitle_language')
 
 def get_subtitle_languages():
-    '''
+    """
     Returns list of TED subtitle language codes in order of preference,
     or None if disabled or no language could be determined.
 
     Preference: custom codes from the add-on settings, otherwise Kodi's preferred
     subtitle language, otherwise the Kodi interface language.
-    '''
+    """
     if enable_subtitles == 'false':
         return None
 
